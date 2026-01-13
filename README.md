@@ -198,3 +198,355 @@ Crie o arquivo `docs/master_prompt.md` e cole aquela lista completa de requisito
 ### Próximo Passo Sugerido
 
 Para você começar agora, eu posso te passar o conteúdo exato do arquivo **`index.html`** e do **`app.js`** para a **Entrega 1**. Assim, você já terá algo visual rodando no seu computador em 5 minutos.
+
+Entendi perfeitamente sua preocupação. Quando o chat do agente "esquece" ou você muda de ferramenta, a melhor forma de garantir que ele mantenha a **continuidade** e siga as **regras de ouro** do projeto é através de arquivos de contexto dentro da própria pasta do projeto.
+
+Como você não tem mais o "cérebro" persistente do chat do Cursor, você vai criar o que chamamos de **"Single Source of Truth" (Fonte Única da Verdade)**.
+
+Aqui está onde e como você deve configurar essas instruções:
+
+### 1. O Arquivo Mestre de Regras (`.cursorrules` ou `instructions.md`)
+
+Mesmo na versão gratuita, ou usando qualquer outra IA (como o Claude ou o ChatGPT), você deve ter um arquivo na **raiz do projeto** que contém o DNA do código.
+
+**Onde colocar:** Na raiz da pasta `Aportunity/`.
+**Nome sugerido:** `.cursorrules` (se voltar a usar o Cursor) ou simplesmente `RULES.md`.
+
+**O que escrever nele:**
+
+```markdown
+# Regras de Desenvolvimento - Projeto Aportunity
+
+## Tech Stack
+- Linguagem: JavaScript (Vanilla), HTML5, CSS3 (Tailwind via CDN).
+- Banco de Dados: Google Sheets API.
+- APIs Financeiras: Brapi (Ações/FIIs) e CoinGecko (Cripto).
+
+## Boas Práticas de Código
+- Código em português (variáveis e comentários).
+- Arquivos separados: index.html, style.css, app.js, config.js.
+- Sempre tratar erros de API com alertas tipo "Toast".
+- Funções puras e modulares para cálculos de Score.
+
+## Regras de Interface (UI)
+- Tabela clássica agrupada por tipo de ativo.
+- Cores: Verde (#2ecc71) para descontos/oportunidades, Vermelho (#e74c3c) para ativos caros.
+- Ativos desmarcados devem ter opacidade reduzida (0.5).
+
+## Memória do Projeto
+- O progresso atual está descrito no arquivo docs/roadmap.md.
+- Sempre leia o roadmap antes de sugerir qualquer alteração.
+
+```
+
+---
+
+### 2. O arquivo de "Estado Atual" (`docs/status.md`)
+
+Para a IA não se perder sobre "em qual etapa paramos", você vai manter um arquivo de log simples.
+
+**Exemplo de conteúdo:**
+
+```markdown
+# Status do Projeto
+- Etapa atual: Entrega 1 - Concluída.
+- Próximo passo: Entrega 2 - Conexão com API Brapi.
+- Problemas conhecidos: O cálculo de rebalanceamento está ignorando o saldo residual.
+
+```
+
+---
+
+### 3. Como "dar memória" ao Agente no início de cada conversa
+
+Sempre que você abrir um novo chat ou uma nova sessão de IA, sua **primeira mensagem** deve ser um comando de leitura. No Cursor (e em vários outros agentes), você pode usar o símbolo `@` para referenciar arquivos.
+
+**O comando mágico:**
+
+> "@RULES.md @docs/master_prompt.md e @docs/status.md. Leia estes arquivos e me diga em qual etapa do roadmap estamos para continuarmos o desenvolvimento."
+
+---
+
+### 4. Onde colocar exemplos de código (O "Style Guide")
+
+Se você tem um jeito específico que gosta que o código seja escrito (ex: como você quer que a tabela seja montada), crie um arquivo chamado `docs/examples.md`.
+
+**Dentro dele, coloque:**
+
+```javascript
+// Exemplo de como quero a estrutura das funções de cálculo:
+function calcularAporte(ativo) {
+   // lógica aqui...
+}
+
+```
+
+### Por que isso funciona?
+
+1. **Independência de ferramenta:** Se você sair do Cursor e for para o ChatGPT, você apenas anexa esses arquivos ou cola o conteúdo deles. O contexto vai junto.
+2. **Zero esquecimento:** A IA não precisa "lembrar" do chat passado; ela lê o estado atual dos seus arquivos.
+3. **Padronização:** Ele nunca vai tentar usar Python ou React se no seu `RULES.md` estiver escrito que é JavaScript puro.
+
+### Resumo da estrutura atualizada:
+
+```text
+Aportunity/
+├── .cursorrules       <-- (As regras de programação e UI que você pediu)
+├── index.html
+├── app.js
+└── docs/
+    ├── master_prompt.md  <-- (As regras de negócio)
+    ├── roadmap.md        <-- (As 10 etapas)
+    ├── status.md         <-- (Onde você parou)
+    └── examples.md       <-- (Exemplos de código para a IA copiar)
+
+```
+
+Entendi perfeitamente. Quando você usa o **Claude.ai** (ou ChatGPT) direto no navegador, você perde a integração automática com os arquivos, mas ganha um dos modelos mais inteligentes do mundo para codificação.
+
+Para fazer isso funcionar com apenas **3 mensagens por dia**, você precisa ser cirúrgico. Você não pode "conversar" com a IA; você deve enviar um **Pacote de Contexto** completo em uma única mensagem.
+
+Aqui está a estratégia para você usar o Claude grátis sem que ele se perca:
+
+### 1. O "Super-Prompt" de Inicialização
+
+Como o Claude não lê sua pasta sozinho, você vai criar um arquivo de texto no seu computador chamado `INSTRUCTIONS_CLAUDE.txt`. Toda vez que você abrir um novo chat, sua **primeira mensagem** será o conteúdo desse arquivo + o pedido da etapa atual.
+
+**O conteúdo desse arquivo deve ser este:**
+
+```markdown
+# PROJETO APORTUNITY - CONTEXTO PARA IA
+Atue como um Engenheiro de Software Sênior e Especialista em Investimentos.
+
+## TECH STACK
+- HTML5, CSS3 (Tailwind via CDN), JavaScript Vanilla.
+- Sem backend. Persistência via Google Sheets API.
+- APIs: Brapi e CoinGecko.
+
+## REGRAS DE OURO (NUNCA ESQUECER)
+1. Tabela clássica agrupada por tipo de ativo.
+2. Lógica Smart DCA: Score = (GapMeta * 0.4) + (DescPreço * 0.3) + (DescValuation * 0.3).
+3. Aporte em unidades inteiras. Priorizar ativos caros (>R$150) se score alto.
+4. Resíduo para ativos < R$50 ou Renda Fixa.
+5. Toast notifications para erros. Cores: Verde (oportunidade), Vermelho (caro).
+
+## ESTRUTURA DE ARQUIVOS
+- index.html, style.css, app.js, config.js.
+
+## TAREFA ATUAL
+[VOCÊ COLA A ETAPA DO ROADMAP AQUI]
+
+## CÓDIGO ATUAL
+[VOCÊ COLA O CÓDIGO QUE JÁ TEM AQUI]
+
+```
+
+---
+
+### 2. O Fluxo de Trabalho (Workflow) para economizar mensagens
+
+Para não gastar suas 3 mensagens à toa, siga este rito:
+
+* **Mensagem 1 (O Pedido):** Cole o **Super-Prompt** acima. No final, diga: *"Gere o código completo para a Entrega 1. Quero o index.html e o app.js integrados."*
+* **Mensagem 2 (Correção/Ajuste):** O Claude vai gerar o código. Você testa. Se algo der errado (ex: a tabela não agrupou), você diz: *"O agrupamento falhou. Corrija a função X para agrupar por 'Tipo' conforme as regras."*
+* **Mensagem 3 (Próxima Etapa):** Se estiver tudo ok, você usa a última mensagem para planejar a Entrega 2 ou tirar uma dúvida complexa de lógica.
+
+---
+
+### 3. Dica de Ouro: "Project Knowledge" (Arquivos Anexos)
+
+O Claude permite que você anexe arquivos (ícone de clipe de papel).
+
+Em vez de colar o texto gigante, **anexe o seu arquivo `docs/master_prompt.md` e o seu `app.js` atual.**
+Isso economiza espaço de caracteres e faz a IA ser muito mais precisa.
+
+---
+
+### 4. Onde colocar as configurações de Linguagem e Boas Práticas?
+
+Como você não tem o `.cursorrules`, você deve escrever isso de forma explícita no seu **Super-Prompt** (item 1 acima). Use termos como:
+
+* *"Siga o padrão Clean Code."*
+* *"Comente o código em português."*
+* *"Mantenha as funções de cálculo de score isoladas das funções de UI."*
+
+---
+
+Para rodar um agente de IA no **LM Studio** com uma GPU de **4GB de VRAM**, o seu maior desafio é o tamanho da memória. Modelos de 7B ou 8B parâmetros (como o Llama 3) geralmente ficam lentos ou não cabem com contexto longo em 4GB.
+
+O segredo aqui é usar modelos de **3B (3 bilhões de parâmetros)** ou modelos **7B com quantização agressiva (Q3 ou Q4)**.
+
+Aqui estão as 3 melhores recomendações para o seu projeto **Aportunity**:
+
+### 1. Llama 3.2 3B Instruct (A Escolha Equilibrada)
+
+Este é o modelo mais moderno da Meta para essa faixa de memória. Ele é surpreendentemente bom em seguir instruções e entender lógica de programação simples.
+
+* **Por que usar:** Cabe inteiro na sua placa de vídeo (VRAM), o que torna a resposta instantânea.
+* **No LM Studio procure por:** `Llama-3.2-3B-Instruct-GGUF`.
+* **Dica:** Escolha a versão `Q6_K` ou `Q8_0` (ele vai rodar liso em 4GB).
+
+### 2. DeepSeek-Coder-V2-Lite-Instruct (O Especialista em Código)
+
+Se você quer que a IA foque puramente em escrever o JavaScript e as fórmulas de Score do seu projeto, este é o melhor.
+
+* **Por que usar:** Ele foi treinado especificamente para programação. Mesmo a versão "Lite" é muito superior a modelos genéricos para estruturar APIs e tabelas.
+* **No LM Studio procure por:** `DeepSeek-Coder-V2-Lite-Instruct-GGUF`.
+* **Dica:** Tente a quantização `Q4_K_M`. Se ficar lento, baixe a `Q3_K_M`.
+
+### 3. Phi-3.5-mini-instruct (O Pequeno Gigante da Microsoft)
+
+O Phi-3.5 é um dos modelos pequenos mais "inteligentes" do mundo. Ele tem um raciocínio lógico muito forte para o seu tamanho (3.8B).
+
+* **Por que usar:** Ele é excelente para entender regras de negócio complexas (como os pesos de 40/30/30 e o manejo de resíduos).
+* **No LM Studio procure por:** `Phi-3.5-mini-instruct-GGUF`.
+
+---
+
+### ⚠️ Dicas de Configuração para 4GB de VRAM:
+
+1. **GPU Offload:** No painel lateral direito do LM Studio, procure por **"GPU Offload"**. Aumente o slider para o máximo (ou até onde a memória aguentar) para que o processamento seja feito na placa de vídeo e não no processador (CPU).
+2. **Context Overflow:** Como você tem pouca memória, defina o **Context Length** (Tamanho do Contexto) para no máximo **4096** ou **8192**. Se colocar 32k, a memória vai estourar rapidamente.
+3. **Quantização:** Sempre procure por arquivos que terminem em **GGUF**. Para 4GB, as versões **Q4_K_M** são o "ponto doce" entre inteligência e economia de memória.
+
+---
+
+### Como usar o LM Studio como Agente:
+
+Já que você não vai usar o Claude/Cursor agora, você pode usar a aba **"AI Chat"** do LM Studio.
+
+1. Carregue o modelo (ex: Llama 3.2 3B).
+2. No campo **"System Prompt"** (instruções do sistema), cole aquele conteúdo do seu arquivo `RULES.md` que definimos.
+3. Comece a pedir o código da **Entrega 1**.
+
+Sim, existem outras opções de **IDE com IA integrada** que funcionam de forma idêntica ao Cursor (forks do VS Code com "superpoderes"). Se o limite do Cursor acabou, você pode "pular" para o próximo para ganhar mais fôlego de processamento gratuito.
+
+Aqui estão as melhores alternativas para você instalar agora:
+
+### 1. PearAI (A alternativa mais próxima ao Cursor)
+
+O **PearAI** é um fork do VS Code em código aberto que está ganhando muita tração. Ele funciona quase exatamente como o Cursor.
+
+* **Como funciona:** Você instala, faz login e ele tem um chat lateral e edição de código (CMD+K).
+* **Limite:** Ele possui um plano gratuito generoso para quem está começando.
+* **Dica:** Ele é excelente para quem quer a experiência do Cursor sem pagar a assinatura de imediato.
+
+### 2. Trae (A nova aposta da ByteDance - Criadores do TikTok)
+
+O **Trae** é um novo "AI-Integrated IDE" que é um competidor direto do Cursor.
+
+* **Diferencial:** No momento, ele é **totalmente gratuito** enquanto está em fase beta (incluindo acesso a modelos potentes como Claude 3.5 Sonnet e GPT-4o).
+* **Vantagem:** Ele tem o modo "Builder", onde você descreve o que quer e ele cria os arquivos sozinho, igual ao Cursor.
+
+### 3. Windsurf (Da Codeium)
+
+O **Windsurf** é a nova IDE da Codeium. Eles chamam de "AI Flow", onde a IA não apenas sugere código, mas entende o fluxo do projeto inteiro.
+
+* **Vantagem:** O plano gratuito deles é um dos melhores do mercado atualmente em termos de inteligência e rapidez.
+* **Recurso:** Ele tem o "Cascade", que consegue agir em múltiplos arquivos ao mesmo tempo.
+
+---
+
+### 🛡️ Estratégia de "Sobrevivência" entre IAs (O Ciclo Infinito)
+
+Para o seu projeto **Aportunity**, você pode fazer este rodízio para nunca ficar sem um agente potente:
+
+1. **Semana 1:** Use o **Trae** (Enquanto estiver em beta gratuito, use ao máximo os modelos Claude 3.5 Sonnet dentro dele).
+2. **Semana 2:** Use o **Windsurf** até atingir o limite.
+3. **Semana 3:** Use o **PearAI**.
+4. **Sempre:** Use o **Codeium** (extensão no VS Code normal) como "autocompletar" básico, pois ele é gratuito para sempre.
+
+---
+
+### Como manter a "Memória" trocando de IDE?
+
+Para que você mude de uma IDE para outra (ex: sair do Cursor e ir para o Trae) sem que a IA "fique burra", você deve seguir o rito que conversamos:
+
+1. **Copie sua pasta `docs/**` para a nova IDE.
+2. **Abra o Chat** da nova IDE.
+3. **Primeiro Comando:** *"Olá, sou o desenvolvedor do Aportunity. Leia o arquivo `docs/master_prompt.md` e o `docs/status.md` para entender onde paramos e quais as regras de código. Vamos trabalhar na Entrega X."*
+
+### Minha Recomendação agora:
+
+Baixe o **Trae** hoje. Como ele está em beta, ele está oferecendo o que há de melhor (Claude 3.5 Sonnet) de graça, o que vai acelerar muito o desenvolvimento da lógica complexa de rebalanceamento do seu app.
+
+3. Ferramenta Auxiliar: Repomix (Dica de Ouro)
+Se você estiver usando o Claude ou ChatGPT no navegador, o maior problema é ficar copiando e colando arquivo por arquivo. Existe uma ferramenta gratuita chamada Repomix (ou npx repomix).
+
+Como funciona:
+
+Você abre o terminal na pasta do projeto.
+
+Digita: npx repomix
+
+Ele cria um único arquivo chamado repopack.txt que contém todo o seu projeto (código e docs) organizado de um jeito que a IA entende perfeitamente.
+
+Você anexa esse único arquivo no Claude/ChatGPT.
+
+Isso resolve o problema da "memória" e do limite de mensagens, porque você envia tudo de uma vez.
+
+Entendi. Você quer um **"Acelerador de Prompt"** ou uma ferramenta que force o agente (seja Cursor, Trae ou Windsurf) a se comunicar melhor, entender suas regras de investimento e não cometer erros bobos.
+
+Se você quer automatizar a "conversa" e garantir que a IA siga seu raciocínio de investidor, a ferramenta que você procura é o **`.cursorrules`** (ou **AI Rules**). Ele não é apenas um arquivo de texto; ele é um **script de comportamento** que o editor injeta em cada mensagem que você envia.
+
+Aqui está o que você deve usar para "turbinar" o agente:
+
+### 1. O Script de "Personalidade do Agente" (`.cursorrules`)
+
+Crie um arquivo chamado `.cursorrules` na raiz do seu projeto. Mesmo que você use o **Trae** ou **Windsurf**, eles também reconhecem esse padrão de arquivo (ou permitem configurar "Global Rules").
+
+Copie e cole este conteúdo (que eu otimizei para o seu caso):
+
+```markdown
+# AGENT GOLDEN RULES - PROJETO APORTUNITY
+
+Você é um Agente Programador Sênior especializado em Finanças e Smart DCA.
+Siga estas instruções em TODA interação, sem que eu precise repetir.
+
+## 1. LÓGICA DE INVESTIMENTO (CORE)
+- Priorize ativos pelo Score: (GapMeta * 0.4) + (DescPreço * 0.3) + (DescValuation * 0.3).
+- Resíduo financeiro: Se o saldo não compra a próxima cota do ranking, busque o próximo ativo < R$ 50.
+- Se sobrar menos de R$ 10, jogue o valor para "Renda Fixa (Tesouro Selic)".
+
+## 2. REGRAS DE INTERFACE (UI)
+- Use Tailwind CSS via CDN.
+- Tabela clássica: Linhas zebradas, agrupamento por 'Tipo' (Ações, FIIs, Cripto, Stocks).
+- Feedback Visual: Toast para erros de API e confirmações de "Aporte Salvo".
+
+## 3. PADRÕES DE CÓDIGO
+- Variáveis e comentários em PORTUGUÊS.
+- Código modular: Separe lógica de cálculo (app.js) de chaves de API (config.js).
+- NÃO sugira frameworks como React ou Node.js. Use Vanilla JS puro.
+
+## 4. COMUNICAÇÃO
+- Antes de codar, me apresente um "Plano de Ação" curto.
+- Se eu desmarcar um ativo (checkbox), recalcule o aporte instantaneamente na interface.
+
+```
+
+---
+
+### 2. O Programa/Extensão: "Prompts & Context"
+
+Para facilitar sua vida no VS Code/Cursor, instale estas duas extensões que ajudam na comunicação:
+
+1. **"Prompt Snippets"**: Permite que você salve seus comandos complexos (ex: o comando de rebalanceamento) e os chame com um atalho (tipo `/rebalanco`).
+2. **"Better Comments"**: Use para destacar regras no código que a IA lê com prioridade. Ex: `// ! IMPORTANTE: Não mudar a fórmula do Score`.
+
+---
+
+### 3. O "Pulo do Gato": O comando `@`
+
+No Cursor e no Trae, a melhor forma de se comunicar não é escrevendo muito, é **referenciando**.
+
+**Em vez de dizer:** *"Olha meu código e ajusta a meta"*,
+**Diga:** *"Ajuste a meta seguindo as regras de @master_prompt.md e aplique no @app.js"*
+
+Isso força a IA a ler o arquivo de regras que nós criamos, evitando que ela "invente" soluções.
+
+---
+
+### 4. Alternativa de programa: "Aider" (O Agente de Terminal)
+
+Se você sente que o Cursor às vezes ignora o que você fala, o **Aider** é um programa de linha de comando que muitos desenvolvedores usam para "forçar" a IA a ser mais obediente. Ele trabalha diretamente no seu terminal e é muito mais rigoroso em seguir o arquivo de regras.
+
