@@ -145,3 +145,56 @@ As metas ideais da carteira são:
 
 ---
 
+Para iniciar um projeto desse tipo com um agente de IA (como o **Cursor**, **Claude Engineer** ou até o **Copilot**), a organização dos arquivos é o que determina se a IA vai te ajudar ou te deixar confuso.
+
+Como é a sua primeira vez, vamos usar uma estrutura **"Flat & Clean"** (Plana e Limpa). Isso facilita para a IA ler todos os arquivos de uma vez e entender o contexto geral.
+
+Aqui está a estrutura de pastas e arquivos recomendada para o seu projeto (que vamos chamar carinhosamente de **Aportunity**):
+
+### 1. Estrutura de Pastas e Arquivos
+
+```text
+Aportunity/
+├── index.html          # O coração do site (Estrutura e Tabelas)
+├── style.css           # O visual (Tailwind ou CSS puro)
+├── app.js              # A lógica: Cálculos, Score e APIs
+├── config.js           # Onde ficam suas Chaves de API e ID do Google Sheets
+├── docs/               # Documentação para a IA
+│   ├── master_prompt.md  # A lista de requisitos que montamos
+│   └── roadmap.md       # O plano de 10 etapas
+└── .gitignore          # Para não subir suas chaves de API para o GitHub
+
+```
+
+---
+
+### 2. Preparação do Terreno (Instalação)
+
+Para quem está começando e quer simplicidade absoluta, recomendo este "kit de sobrevivência":
+
+1. **Editor de Código:** Baixe o **[Cursor](https://cursor.sh/)**. Ele é uma versão do VS Code que já vem com uma IA integrada que "enxerga" todo o seu projeto. É o melhor "agente" para iniciantes hoje.
+2. **Servidor Local:** Instale a extensão **"Live Server"** no Cursor/VS Code. Ela permite que você veja as alterações no site em tempo real enquanto a IA escreve o código.
+3. **Controle de Versão:** Crie uma conta no **GitHub** e instale o **Git** no seu computador. Isso será necessário para a hospedagem gratuita (GitHub Pages) no final.
+
+---
+
+### 3. Como iniciar o Agente de IA
+
+Ao abrir o Cursor na pasta do projeto, você não vai apenas pedir "faça um app". Você vai dar a ele o contexto que construímos.
+
+**O primeiro passo com o Agente:**
+Crie o arquivo `docs/master_prompt.md` e cole aquela lista completa de requisitos que finalizamos na mensagem anterior. Depois, abra o chat da IA e diga:
+
+> "Olá! Sou iniciante. Vamos construir o projeto **Aportunity** seguindo o `docs/master_prompt.md`. Use o `docs/roadmap.md` para guiar nossas entregas. Vamos começar pela **Entrega 1: Fundação**. Crie os arquivos iniciais focando apenas no rebalanceamento por meta e na estrutura de tabela clássica agrupada."
+
+---
+
+### 4. Por que essa estrutura?
+
+* **`config.js` separado:** Evita que você exponha sua API Key da Brapi sem querer.
+* **Pasta `docs/`:** Funciona como a "memória de longo prazo" da IA. Se ela se perder na etapa 5, você diz: "Volte ao roadmap no arquivo docs e veja o que falta".
+* **`app.js` único:** No início, manter toda a lógica em um arquivo ajuda a IA a não se confundir com importações complexas de arquivos que ainda não existem.
+
+### Próximo Passo Sugerido
+
+Para você começar agora, eu posso te passar o conteúdo exato do arquivo **`index.html`** e do **`app.js`** para a **Entrega 1**. Assim, você já terá algo visual rodando no seu computador em 5 minutos.
