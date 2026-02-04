@@ -1,6 +1,6 @@
-Tipo, % Ideal
-Renda Fixa, 25
-FIIs, 25
-Ações, 22
-Stocks, 23
-Cripto, 5
+Tipo, % Ideal, % Atual
+Renda Fixa, 25, 0
+FIIs, 25, 0
+Ações, 22, 0
+Stocks, 23, 0
+Cripto, 5, 0

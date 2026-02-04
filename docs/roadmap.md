@@ -1,4 +1,4 @@
-- [ ] Task 1: Criar arquivo CSV (modelo)
+- [ V ] Task 1: Criar arquivo CSV (modelo)
 - [ ] Task 2: Criar tela index.html básica
 - [ ] Task 3: O index.html deve carregar o CSV
 - [ ] Task 4: Implementar lógica de cálculo de aportes em index.js

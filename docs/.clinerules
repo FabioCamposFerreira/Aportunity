@@ -23,12 +23,15 @@ Aportunity/
 
 # Regras de Negócio
 - Web App estático para automação de aportes mensais de uma carteira de investimentos
-- O aplicativo deve ler e escrever em uma planilha csv com duas as informações: tipo de investimento, porcentagem ideal,porcentagem ideal, valor a ser aportado no mês
--Tipos de investimento: Ações, Renda Fixa, Fundos Imobiliários, Criptomoedas
+- O aplicativo deve ler e escrever em uma planilha csv com duas as informações: tipo de investimento, porcentagem ideal,porcentagem atual
+- Tipos de investimento: Renda Fixa, Fundos Imobiliários,Ações,Stocks, Criptomoedas
+- Na tela principal, exibir tabela com os tipos de investimento, porcentagem ideal, porcentagem atual, valor atual e o resultado do calculo do aporte necessário para cada tipo de investimento
 
 # Protocolo de Trabalho
-1. Sempre leia o arquivo 'tasks.md' antes de começar.
+1. Sempre leia o arquivo 'roadmap.md' antes de começar.
 2. Execute apenas UMA task por vez.
 3. Após cada task, execute o comando de build/teste para validar.
 4. Peça minha aprovação ("READY para próxima?") antes de seguir.
 Use code with caution.
+5. Atualize o arquivo 'roadmap.md' marcando as tasks concluídas.
+5. Nunca ignore as regras de código e negócio.

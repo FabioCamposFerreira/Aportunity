@@ -1,3 +1,4 @@
+
 # Aportunity
 Web App estático para automação de aportes mensais de uma carteira de investimentos
 
@@ -550,3 +551,4 @@ Isso força a IA a ler o arquivo de regras que nós criamos, evitando que ela "i
 
 Se você sente que o Cursor às vezes ignora o que você fala, o **Aider** é um programa de linha de comando que muitos desenvolvedores usam para "forçar" a IA a ser mais obediente. Ele trabalha diretamente no seu terminal e é muito mais rigoroso em seguir o arquivo de regras.
 
+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
