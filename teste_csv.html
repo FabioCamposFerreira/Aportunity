@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste Leitura CSV</title>
+</head>
+<body>
+    <h1>Teste de Leitura do CSV</h1>
+    <div id="resultado"></div>
+    <script>
+        fetch('carteira.csv')
+            .then(response => response.text())
+            .then(data => {
+                const linhas = data.trim().split('\n');
+                const cabecalho = linhas[0].split(',');
+                const resultadoDiv = document.getElementById('resultado');
+                
+                let html = '<h2>Dados carregados:</h2><ul>';
+                for (let i = 1; i < linhas.length; i++) {
+                    const colunas = linhas[i].split(',');
+                    html += `<li>${colunas[0]}: % Ideal = ${colunas[1]}, Valor Mensal = R$ ${colunas[2]}</li>`;
+                }
+                html += '</ul>';
+                resultadoDiv.innerHTML = html;
+                
+                console.log('CSV carregado com sucesso!', linhas);
+            })
+            .catch(error => {
+                console.error('Erro ao carregar CSV:', error);
+                document.getElementById('resultado').innerHTML = 
+                    '<p style="color:red;">Erro: ' + error.message + '</p>';
+            });
+    </script>
+</body>
+</html>

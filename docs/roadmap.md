@@ -1,0 +1,6 @@
+- [ ] Task 1: Criar arquivo CSV (modelo)
+- [ ] Task 2: Criar tela index.html básica
+- [ ] Task 3: O index.html deve carregar o CSV
+- [ ] Task 4: Implementar lógica de cálculo de aportes em index.js
+- [ ] Task 5: Exibir resultados na tela
+- [ ] Task 6: Estilizar com style.css
