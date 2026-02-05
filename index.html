@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aportunity - Automação de Aportes</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>💰 Aportunity</h1>
+        <p>Automação de Aportes Mensais</p>
+        <button id="btnCarregarCSVs">Carregar CSVs</button>
+    </header>
+
+    <div class="container">
+        <main>
+            <h2>Carteira de Investimentos</h2>
+            <table id="carteira">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>% Ideal</th>
+                        <th>% Atual</th>
+                        <th>Valor Atual</th>
+                        <th>Valor do Aporte</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="carteiraBody">
+                    <!-- Linhas serão inseridas via JavaScript -->
+                </tbody>
+            </table>
+        </main>
+
+        <aside id="resumo">
+            <h3>Resumo</h3>
+            <div class="resumo-item">
+                <span class="label">Patrimônio Atual:</span>
+                <span class="valor" id="patrimonioAtual">R$ --</span>
+            </div>
+            <div class="resumo-item">
+                <span class="label">Quanto vou aportar:</span>
+                <span class="valor destaque" id="aporteTotal">R$ --</span>
+            </div>
+            <div class="resumo-item">
+                <span class="label">Soma dos aportes:</span>
+                <span class="valor" id="somaAportes">R$ --</span>
+            </div>
+        </aside>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
