@@ -32,6 +32,18 @@ function formatarBRL(valor) {
 }
 
 /**
+ * Formata percentuais para pt-BR com vírgula e sinal %
+ */
+function formatPercent(valor) {
+    if (valor === null || valor === undefined || isNaN(valor)) return '--';
+    try {
+        return new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 2 }).format(valor / 100);
+    } catch (e) {
+        return `${valor}%`;
+    }
+}
+
+/**
  * Parse de valor monetário brasileiro
  */
 function parseValorBR(string) {
@@ -65,16 +77,32 @@ function lerCSV(textoCSV) {
         // Primeira linha é o cabeçalho
         const cabecalho = linhas[0].split(',').map(col => col.trim().replace(/"/g, ''));
         
-        // Mapeia as demais linhas
+        // Mapeia as demais linhas (tratando casos onde valores contenham vírgulas,
+        // como números no formato BR: "10.042,10" que provocariam colunas extras)
         const dados = [];
         for (let i = 1; i < linhas.length; i++) {
-            const valores = linhas[i].split(',').map(val => val.trim().replace(/"/g, ''));
+            // Quebrar inicialmente e limpar aspas/espacos
+            let valores = linhas[i].split(',').map(val => val.trim().replace(/"/g, ''));
+
+            // Se houver mais valores que colunas do cabeçalho,
+            // juntar os valores excedentes na última coluna (preserva vírgulas dentro do campo)
+            if (valores.length > cabecalho.length) {
+                const fix = [];
+                // Copia valores até a penúltima coluna do cabeçalho
+                for (let j = 0; j < cabecalho.length - 1; j++) {
+                    fix.push(valores[j] || '');
+                }
+                // Junta o restante preservando as vírgulas internas
+                const restante = valores.slice(cabecalho.length - 1).join(',');
+                fix.push(restante);
+                valores = fix;
+            }
+
             const objeto = {};
-            
             cabecalho.forEach((coluna, index) => {
                 objeto[coluna] = valores[index] || '';
             });
-            
+
             dados.push(objeto);
         }
         
@@ -107,72 +135,84 @@ async function carregarCSVviaFetch(url) {
  */
 function calcularAportes(carteira, aporteMensal) {
     const resultado = [];
-    
+
     // Calcular gaps positivos
-    let somaGaps = 0;
     const itensComGap = [];
-    
     carteira.forEach(item => {
         const gap = item.ideal - item.atual;
         if (gap > 0) {
-            somaGaps += gap;
-            itensComGap.push({
-                tipo: item.tipo,
-                gap: gap,
-                ideal: item.ideal,
-                atual: item.atual
-            });
+            itensComGap.push({ tipo: item.tipo, gap: gap, ideal: item.ideal, atual: item.atual });
         }
     });
-    
-    // Se não há gaps positivos, não aportar
-    if (somaGaps === 0) {
-        carteira.forEach(item => {
-            resultado.push({
-                tipo: item.tipo,
-                aporteSugerido: 0
-            });
-        });
+
+    if (itensComGap.length === 0) {
+        carteira.forEach(item => resultado.push({ tipo: item.tipo, aporteSugerido: 0 }));
         return resultado;
     }
-    
-    // Calcular aportes proporcionais
-    let somaAportes = 0;
-    const aportes = [];
-    
+
+    // Separar itens com override (fixos) e flexíveis
+    const fixos = [];
+    const flexiveis = [];
     itensComGap.forEach(item => {
-        let aporte = Math.round((aporteMensal * item.gap / somaGaps) * 100) / 100;
-        
-        // Verificar se há override
-        if (overridesAporte[item.tipo] !== undefined) {
-            aporte = overridesAporte[item.tipo];
+        if (overridesAporte[item.tipo] !== undefined && !isNaN(Number(overridesAporte[item.tipo]))) {
+            const val = Math.max(0, Number(overridesAporte[item.tipo]));
+            fixos.push({ ...item, aporteFixo: Math.round(val * 100) / 100 });
+        } else {
+            flexiveis.push(item);
         }
-        
-        aportes.push({
-            tipo: item.tipo,
-            aporteSugerido: aporte
-        });
-        somaAportes += aporte;
     });
-    
-    // Ajustar diferença residual (distribuir nos maiores gaps)
-    const diferenca = aporteMensal - somaAportes;
-    if (Math.abs(diferenca) > 0.01 && aportes.length > 0) {
-        aportes[0].aporteSugerido += diferenca;
-        aportes[0].aporteSugerido = Math.round(aportes[0].aporteSugerido * 100) / 100;
+
+    const totalFixo = fixos.reduce((s, f) => s + f.aporteFixo, 0);
+    let restante = Math.round((aporteMensal - totalFixo) * 100) / 100;
+
+    if (restante < 0) {
+        restante = 0;
+        if (typeof mostrarToast === 'function') mostrarToast('Soma dos aportes fixos excede o total disponível; outros aportes foram zerados.', 'warning');
     }
-    
-    // Adicionar itens sem gap
-    carteira.forEach(item => {
-        const jaTem = aportes.find(a => a.tipo === item.tipo);
-        if (!jaTem) {
-            resultado.push({
-                tipo: item.tipo,
-                aporteSugerido: 0
-            });
+
+    const somaGapsFlex = flexiveis.reduce((s, it) => s + it.gap, 0);
+
+    const aportes = [];
+    // Alocar fixos
+    fixos.forEach(f => aportes.push({ tipo: f.tipo, aporteSugerido: Math.round(f.aporteFixo * 100) / 100 }));
+
+    // Alocar restante para flexíveis
+    if (somaGapsFlex > 0) {
+        flexiveis.forEach(it => {
+            const aporte = Math.round((restante * it.gap / somaGapsFlex) * 100) / 100;
+            aportes.push({ tipo: it.tipo, aporteSugerido: aporte });
+        });
+    } else {
+        flexiveis.forEach(it => aportes.push({ tipo: it.tipo, aporteSugerido: 0 }));
+    }
+
+    // Ajuste residual
+    let somaAportes = aportes.reduce((s, a) => s + a.aporteSugerido, 0);
+    const diferenca = Math.round((aporteMensal - somaAportes) * 100) / 100;
+    if (Math.abs(diferenca) > 0.001 && aportes.length > 0) {
+        const indiceFlex = aportes.findIndex(a => overridesAporte[a.tipo] === undefined);
+        const alvo = indiceFlex >= 0 ? indiceFlex : 0;
+        aportes[alvo].aporteSugerido = Math.round((aportes[alvo].aporteSugerido + diferenca) * 100) / 100;
+    }
+
+    // Normalizar
+    function normalizarAportes(aportesArr) {
+        for (let iter = 0; iter < 5; iter++) {
+            let somaNeg = 0, somaPos = 0;
+            aportesArr.forEach(a => { if (a.aporteSugerido < 0) somaNeg += Math.abs(a.aporteSugerido); else somaPos += a.aporteSugerido; });
+            if (somaNeg === 0) break;
+            aportesArr.forEach(a => { if (a.aporteSugerido < 0) a.aporteSugerido = 0; });
+            if (somaPos <= 0) break;
+            const fator = Math.max(0, (somaPos - somaNeg) / somaPos);
+            aportesArr.forEach(a => { if (a.aporteSugerido > 0) a.aporteSugerido = Math.round((a.aporteSugerido * fator) * 100) / 100; });
         }
-    });
-    
+    }
+
+    normalizarAportes(aportes);
+
+    // Adicionar itens sem gap
+    carteira.forEach(item => { const ja = aportes.find(a => a.tipo === item.tipo); if (!ja) resultado.push({ tipo: item.tipo, aporteSugerido: 0 }); });
+
     return [...aportes, ...resultado.filter(r => !aportes.find(a => a.tipo === r.tipo))];
 }
 
@@ -182,43 +222,45 @@ function calcularAportes(carteira, aporteMensal) {
 function renderCarteira(carteiraComAportes) {
     const tbody = document.getElementById('carteiraBody');
     tbody.innerHTML = '';
-    
+
+    const novoTotal = dadosAporte.patrimonio + dadosAporte.aporteMensal;
+
     carteiraComAportes.forEach((item, index) => {
         const tr = document.createElement('tr');
-        if (item.aporteSugerido > 0) {
-            tr.classList.add('com-aporte');
-        }
-        
+        if (item.aporteSugerido > 0) tr.classList.add('com-aporte');
+
         const valorAtual = (dadosAporte.patrimonio * item.atual / 100) || 0;
-        
+        const aporte = item.aporteSugerido || 0;
+        const previstoPercent = novoTotal > 0 ? ((valorAtual + aporte) / novoTotal) * 100 : 0;
+
         tr.innerHTML = `
             <td>${item.tipo}</td>
-            <td>${item.ideal}%</td>
-            <td>${item.atual}%</td>
+            <td>${formatPercent(item.ideal)}</td>
+            <td>${formatPercent(item.atual)}</td>
             <td>${formatarBRL(valorAtual)}</td>
             <td class="valor-aporte" data-tipo="${item.tipo}">
-                <span class="valor-display">${formatarBRL(item.aporteSugerido)}</span>
-                <input type="number" class="valor-input" value="${item.aporteSugerido.toFixed(2)}" step="0.01" style="display:none;">
+                <span class="valor-display">${formatarBRL(aporte)}</span>
+                <input type="number" class="valor-input" value="${aporte.toFixed(2)}" step="0.01" style="display:none;">
             </td>
+            <td>${formatPercent(previstoPercent)}</td>
             <td>
                 <button class="btn-editar" data-tipo="${item.tipo}" data-index="${index}">Editar</button>
             </td>
         `;
-        
+
         tbody.appendChild(tr);
     });
-    
+
     // Atualizar resumo
     const somaAportes = carteiraComAportes.reduce((sum, item) => sum + item.aporteSugerido, 0);
     document.getElementById('patrimonioAtual').textContent = formatarBRL(dadosAporte.patrimonio);
     document.getElementById('aporteTotal').textContent = formatarBRL(dadosAporte.aporteMensal);
     document.getElementById('somaAportes').textContent = formatarBRL(somaAportes);
-    
+
     // Adicionar eventos de edição
-    document.querySelectorAll('.btn-editar').forEach(btn => {
-        btn.addEventListener('click', handleEditarAporte);
-    });
+    document.querySelectorAll('.btn-editar').forEach(btn => btn.addEventListener('click', handleEditarAporte));
 }
+ 
 
 /**
  * Handler para editar aporte
