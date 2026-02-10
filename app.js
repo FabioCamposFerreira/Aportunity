@@ -15,7 +15,7 @@ function mostrarToast(mensagem, tipo = 'info') {
     const toast = document.getElementById('toast');
     toast.textContent = mensagem;
     toast.className = `toast ${tipo} show`;
-    
+
     setTimeout(() => {
         toast.className = 'toast';
     }, 3000);
@@ -48,18 +48,34 @@ function formatPercent(valor) {
  */
 function parseValorBR(string) {
     if (!string) return NaN;
-    
+
     // Remove R$, espaços e pontos de milhar
     let valorLimpo = string.toString()
         .replace(/R\$/g, '')
         .replace(/\s/g, '')
         .replace(/\./g, '');
-    
+
     // Substitui vírgula por ponto
     valorLimpo = valorLimpo.replace(',', '.');
-    
+
     const numero = Number(valorLimpo);
     return numero;
+}
+
+/**
+ * Parse de percentual (remove % e converte para número)
+ */
+function parsePercent(string) {
+    if (!string) return NaN;
+    
+    // Remove % e espaços, substitui vírgula por ponto
+    let valorLimpo = string.toString()
+        .replace(/%/g, '')
+        .replace(/\s/g, '')
+        .replace(',', '.');
+    
+    const numero = parseFloat(valorLimpo);
+    return isNaN(numero) ? 0 : numero;
 }
 
 /**
@@ -69,14 +85,14 @@ function lerCSV(textoCSV) {
     try {
         // Separa linhas por \n ou \r\n
         const linhas = textoCSV.split(/\r?\n/).filter(linha => linha.trim());
-        
+
         if (linhas.length < 2) {
             throw new Error('CSV vazio ou inválido');
         }
-        
+
         // Primeira linha é o cabeçalho
         const cabecalho = linhas[0].split(',').map(col => col.trim().replace(/"/g, ''));
-        
+
         // Mapeia as demais linhas (tratando casos onde valores contenham vírgulas,
         // como números no formato BR: "10.042,10" que provocariam colunas extras)
         const dados = [];
@@ -105,7 +121,7 @@ function lerCSV(textoCSV) {
 
             dados.push(objeto);
         }
-        
+
         return dados;
     } catch (erro) {
         console.error('Erro ao parsear CSV:', erro);
@@ -131,89 +147,108 @@ async function carregarCSVviaFetch(url) {
 }
 
 /**
- * Calcula os aportes sugeridos
+ * Calcula os aportes sugeridos seguindo o algoritmo correto
+ * Algoritmo: distribuir aporte proporcional ao déficit (somente quem está abaixo do ideal)
  */
-function calcularAportes(carteira, aporteMensal) {
-    const resultado = [];
+function calcularAportes(carteira, aporteMensal, patrimonioTotal) {
+    const T = patrimonioTotal;
+    const A = aporteMensal;
+    const S = T + A; // Patrimônio depois do aporte
 
-    // Calcular gaps positivos
-    const itensComGap = [];
-    carteira.forEach(item => {
-        const gap = item.ideal - item.atual;
-        if (gap > 0) {
-            itensComGap.push({ tipo: item.tipo, gap: gap, ideal: item.ideal, atual: item.atual });
-        }
+    console.log('=== CÁLCULO DE APORTES ===');
+    console.log('Patrimônio Total:', T);
+    console.log('Aporte Mensal:', A);
+    console.log('Patrimônio Futuro:', S);
+
+    // 1) Calcular valor atual e déficit de cada classe
+    const dadosCalculados = carteira.map(item => {
+        const ideal_percent = item.ideal / 100;
+        const atual_percent = item.atual / 100;
+        
+        const valorAntes = T * atual_percent;
+        const alvo = S * ideal_percent;
+        const deficit = Math.max(0, alvo - valorAntes);
+
+        console.log(`${item.tipo}: ideal=${item.ideal}%, atual=${item.atual}%, déficit=R$ ${deficit.toFixed(2)}`);
+
+        return {
+            tipo: item.tipo,
+            valorAntes: valorAntes,
+            alvo: alvo,
+            deficit: deficit,
+            isFixo: overridesAporte[item.tipo] !== undefined && !isNaN(Number(overridesAporte[item.tipo]))
+        };
     });
 
-    if (itensComGap.length === 0) {
-        carteira.forEach(item => resultado.push({ tipo: item.tipo, aporteSugerido: 0 }));
-        return resultado;
-    }
+    // 2) Separar fixos (overrides manuais) e flexíveis
+    const fixos = dadosCalculados.filter(d => d.isFixo);
+    const flexiveis = dadosCalculados.filter(d => !d.isFixo);
 
-    // Separar itens com override (fixos) e flexíveis
-    const fixos = [];
-    const flexiveis = [];
-    itensComGap.forEach(item => {
-        if (overridesAporte[item.tipo] !== undefined && !isNaN(Number(overridesAporte[item.tipo]))) {
-            const val = Math.max(0, Number(overridesAporte[item.tipo]));
-            fixos.push({ ...item, aporteFixo: Math.round(val * 100) / 100 });
-        } else {
-            flexiveis.push(item);
-        }
-    });
-
-    const totalFixo = fixos.reduce((s, f) => s + f.aporteFixo, 0);
-    let restante = Math.round((aporteMensal - totalFixo) * 100) / 100;
-
-    if (restante < 0) {
-        restante = 0;
-        if (typeof mostrarToast === 'function') mostrarToast('Soma dos aportes fixos excede o total disponível; outros aportes foram zerados.', 'warning');
-    }
-
-    const somaGapsFlex = flexiveis.reduce((s, it) => s + it.gap, 0);
-
+    // 3) Processar fixos (aportes manuais)
+    let totalFixo = 0;
     const aportes = [];
-    // Alocar fixos
-    fixos.forEach(f => aportes.push({ tipo: f.tipo, aporteSugerido: Math.round(f.aporteFixo * 100) / 100 }));
 
-    // Alocar restante para flexíveis
-    if (somaGapsFlex > 0) {
-        flexiveis.forEach(it => {
-            const aporte = Math.round((restante * it.gap / somaGapsFlex) * 100) / 100;
-            aportes.push({ tipo: it.tipo, aporteSugerido: aporte });
+    fixos.forEach(item => {
+        const aporteFixo = Math.max(0, Number(overridesAporte[item.tipo]));
+        totalFixo += aporteFixo;
+        aportes.push({ tipo: item.tipo, aporteSugerido: aporteFixo });
+    });
+
+    // 4) Calcular restante para distribuir entre flexíveis
+    let aporteRestante = A - totalFixo;
+
+    if (aporteRestante < 0) {
+        aporteRestante = 0;
+        if (typeof mostrarToast === 'function') {
+            mostrarToast('Soma dos aportes fixos excede o total disponível!', 'warning');
+        }
+    }
+
+    // 5) Somar déficits dos flexíveis
+    const somaDeficits = flexiveis.reduce((sum, item) => sum + item.deficit, 0);
+    console.log('Soma Déficits:', somaDeficits);
+
+    // 6) Ratear aporte proporcional ao déficit (somente quem está abaixo do ideal)
+    if (somaDeficits === 0) {
+        // Nenhum flexível tem déficit -> aporte zero para todos
+        flexiveis.forEach(item => {
+            aportes.push({ tipo: item.tipo, aporteSugerido: 0 });
         });
     } else {
-        flexiveis.forEach(it => aportes.push({ tipo: it.tipo, aporteSugerido: 0 }));
+        // Distribuir proporcional ao déficit
+        flexiveis.forEach(item => {
+            const aporte = (aporteRestante * item.deficit) / somaDeficits;
+            console.log(`${item.tipo}: aporte = ${aporte.toFixed(2)}`);
+            aportes.push({ tipo: item.tipo, aporteSugerido: aporte });
+        });
     }
 
-    // Ajuste residual
-    let somaAportes = aportes.reduce((s, a) => s + a.aporteSugerido, 0);
-    const diferenca = Math.round((aporteMensal - somaAportes) * 100) / 100;
-    if (Math.abs(diferenca) > 0.001 && aportes.length > 0) {
-        const indiceFlex = aportes.findIndex(a => overridesAporte[a.tipo] === undefined);
-        const alvo = indiceFlex >= 0 ? indiceFlex : 0;
-        aportes[alvo].aporteSugerido = Math.round((aportes[alvo].aporteSugerido + diferenca) * 100) / 100;
-    }
+    // 7) Arredondamento e ajuste residual
+    // Arredondar cada aporte para 2 casas decimais
+    aportes.forEach(a => {
+        a.aporteSugerido = Math.round(a.aporteSugerido * 100) / 100;
+    });
 
-    // Normalizar
-    function normalizarAportes(aportesArr) {
-        for (let iter = 0; iter < 5; iter++) {
-            let somaNeg = 0, somaPos = 0;
-            aportesArr.forEach(a => { if (a.aporteSugerido < 0) somaNeg += Math.abs(a.aporteSugerido); else somaPos += a.aporteSugerido; });
-            if (somaNeg === 0) break;
-            aportesArr.forEach(a => { if (a.aporteSugerido < 0) a.aporteSugerido = 0; });
-            if (somaPos <= 0) break;
-            const fator = Math.max(0, (somaPos - somaNeg) / somaPos);
-            aportesArr.forEach(a => { if (a.aporteSugerido > 0) a.aporteSugerido = Math.round((a.aporteSugerido * fator) * 100) / 100; });
+    // Calcular diferença residual
+    const somaAportes = aportes.reduce((sum, a) => sum + a.aporteSugerido, 0);
+    const diff = Math.round((A - somaAportes) * 100) / 100;
+
+    // Adicionar diferença ao item com maior déficit (entre os flexíveis)
+    if (Math.abs(diff) > 0.001 && flexiveis.length > 0) {
+        // Encontrar flexível com maior déficit
+        const flexiveisOrdenados = [...flexiveis].sort((a, b) => b.deficit - a.deficit);
+        const tipoMaiorDeficit = flexiveisOrdenados[0].tipo;
+        
+        const itemAjuste = aportes.find(a => a.tipo === tipoMaiorDeficit);
+        if (itemAjuste) {
+            itemAjuste.aporteSugerido = Math.round((itemAjuste.aporteSugerido + diff) * 100) / 100;
         }
     }
 
-    normalizarAportes(aportes);
+    console.log('=== APORTES FINAIS ===');
+    aportes.forEach(a => console.log(`${a.tipo}: R$ ${a.aporteSugerido.toFixed(2)}`));
 
-    // Adicionar itens sem gap
-    carteira.forEach(item => { const ja = aportes.find(a => a.tipo === item.tipo); if (!ja) resultado.push({ tipo: item.tipo, aporteSugerido: 0 }); });
-
-    return [...aportes, ...resultado.filter(r => !aportes.find(a => a.tipo === r.tipo))];
+    return aportes;
 }
 
 /**
@@ -228,6 +263,9 @@ function renderCarteira(carteiraComAportes) {
     carteiraComAportes.forEach((item, index) => {
         const tr = document.createElement('tr');
         if (item.aporteSugerido > 0) tr.classList.add('com-aporte');
+
+        const isOverride = overridesAporte[item.tipo] !== undefined;
+        if (isOverride) tr.classList.add('override-ativo');
 
         const valorAtual = (dadosAporte.patrimonio * item.atual / 100) || 0;
         const aporte = item.aporteSugerido || 0;
@@ -260,7 +298,7 @@ function renderCarteira(carteiraComAportes) {
     // Adicionar eventos de edição
     document.querySelectorAll('.btn-editar').forEach(btn => btn.addEventListener('click', handleEditarAporte));
 }
- 
+
 
 /**
  * Handler para editar aporte
@@ -271,7 +309,7 @@ function handleEditarAporte(e) {
     const td = document.querySelector(`.valor-aporte[data-tipo="${tipo}"]`);
     const display = td.querySelector('.valor-display');
     const input = td.querySelector('.valor-input');
-    
+
     if (btn.textContent === 'Editar') {
         // Modo edição
         display.style.display = 'none';
@@ -283,13 +321,13 @@ function handleEditarAporte(e) {
         // Salvar
         const novoValor = parseFloat(input.value) || 0;
         overridesAporte[tipo] = novoValor;
-        
+
         // Salvar no localStorage
         localStorage.setItem('aportes_overrides', JSON.stringify(overridesAporte));
-        
+
         // Recalcular
         processarDados();
-        
+
         mostrarToast(`Aporte de ${tipo} atualizado!`, 'success');
     }
 }
@@ -299,11 +337,17 @@ function handleEditarAporte(e) {
  */
 function processarDados() {
     if (dadosCarteira.length === 0 || dadosAporte.patrimonio === 0) {
+        console.warn('Dados insuficientes para processar');
         return;
     }
-    
-    const aportes = calcularAportes(dadosCarteira, dadosAporte.aporteMensal);
-    
+
+    console.log('=== PROCESSANDO DADOS ===');
+    console.log('Carteira:', dadosCarteira);
+    console.log('Patrimônio:', dadosAporte.patrimonio);
+    console.log('Aporte Mensal:', dadosAporte.aporteMensal);
+
+    const aportes = calcularAportes(dadosCarteira, dadosAporte.aporteMensal, dadosAporte.patrimonio);
+
     // Mesclar dados
     const carteiraCompleta = dadosCarteira.map(item => {
         const aporte = aportes.find(a => a.tipo === item.tipo);
@@ -312,7 +356,7 @@ function processarDados() {
             aporteSugerido: aporte ? aporte.aporteSugerido : 0
         };
     });
-    
+
     renderCarteira(carteiraCompleta);
 }
 
@@ -322,37 +366,52 @@ function processarDados() {
 async function carregarCSVs() {
     try {
         mostrarToast('Carregando dados...', 'info');
-        
+
         // Carregar carteira
         const dadosCarteiraCSV = await carregarCSVviaFetch(NOME_ARQUIVO_CARTEIRA);
-        dadosCarteira = dadosCarteiraCSV.map(item => ({
-            tipo: item.Tipo.trim(),
-            ideal: parseFloat(item['% Ideal']) || 0,
-            atual: parseFloat(item['% Atual']) || 0
-        }));
+        console.log('CSV Carteira carregado:', dadosCarteiraCSV);
         
+        dadosCarteira = dadosCarteiraCSV.map(item => {
+            const tipo = item.Tipo.trim();
+            const ideal = parsePercent(item['% Ideal']);
+            const atual = parsePercent(item['% Atual']);
+            
+            console.log(`Parseando: ${tipo} - ideal: ${ideal}%, atual: ${atual}%`);
+            
+            return {
+                tipo: tipo,
+                ideal: ideal,
+                atual: atual
+            };
+        });
+
         // Carregar aporte
         const dadosAporteCSV = await carregarCSVviaFetch(NOME_ARQUIVO_APORTE);
+        console.log('CSV Aporte carregado:', dadosAporteCSV);
+        
         dadosAporteCSV.forEach(item => {
             if (item.Tipo.includes('Patrimônio')) {
                 dadosAporte.patrimonio = parseValorBR(item['Valor R$']);
+                console.log('Patrimônio parseado:', dadosAporte.patrimonio);
             } else if (item.Tipo.includes('aportar')) {
                 dadosAporte.aporteMensal = parseValorBR(item['Valor R$']);
+                console.log('Aporte Mensal parseado:', dadosAporte.aporteMensal);
             }
         });
-        
+
         // Carregar overrides do localStorage
         const overridesSalvos = localStorage.getItem('aportes_overrides');
         if (overridesSalvos) {
             overridesAporte = JSON.parse(overridesSalvos);
+            console.log('Overrides carregados:', overridesAporte);
         }
-        
+
         processarDados();
-        
+
         mostrarToast('Dados carregados com sucesso!', 'success');
     } catch (erro) {
         mostrarToast(`Erro ao carregar dados: ${erro.message}`, 'error');
-        console.error('Erro:', erro);
+        console.error('Erro detalhado:', erro);
     }
 }
 
@@ -362,7 +421,7 @@ async function carregarCSVs() {
 function criarPlaceholders() {
     const tbody = document.getElementById('carteiraBody');
     const tipos = ['Renda Fixa', 'FIIs', 'Ações', 'Stocks', 'Cripto'];
-    
+
     tipos.forEach((tipo, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -374,6 +433,7 @@ function criarPlaceholders() {
                 <span class="valor-display">R$ 0,00</span>
                 <input type="number" class="valor-input" value="0" step="0.01" style="display:none;">
             </td>
+            <td>--</td>
             <td>
                 <button class="btn-editar" data-tipo="${tipo}" data-index="${index}">Editar</button>
             </td>
@@ -387,16 +447,26 @@ function criarPlaceholders() {
  */
 function iniciarApp() {
     console.log('App iniciado');
-    
+
     // Criar placeholders iniciais
     criarPlaceholders();
-    
+
     // Adicionar evento ao botão
     const btnCarregar = document.getElementById('btnCarregarCSVs');
     if (btnCarregar) {
         btnCarregar.addEventListener('click', carregarCSVs);
     }
-    
+
+    const btnLimpar = document.getElementById('btnLimparAjustes');
+    if (btnLimpar) {
+        btnLimpar.addEventListener('click', () => {
+            overridesAporte = {};
+            localStorage.removeItem('aportes_overrides');
+            processarDados();
+            mostrarToast('Ajustes manuais limpos!', 'success');
+        });
+    }
+
     // Carregar automaticamente
     carregarCSVs();
 }
